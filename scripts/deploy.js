@@ -1,3 +1,5 @@
+const { saveFrontendFiles } = require("./_utils");
+
 // This is a script for deploying your contracts. You can adapt it to deploy
 // yours, or create new ones.
 async function main() {
@@ -5,8 +7,8 @@ async function main() {
   if (network.name === "hardhat") {
     console.warn(
       "You are trying to deploy a contract to the Hardhat Network, which" +
-        "gets automatically created and destroyed every time. Use the Hardhat" +
-        " option '--network localhost'"
+      "gets automatically created and destroyed every time. Use the Hardhat" +
+      " option '--network localhost'"
     );
   }
 
@@ -16,38 +18,49 @@ async function main() {
     "Deploying the contracts with the account:",
     await deployer.getAddress()
   );
-
   console.log("Account balance:", (await deployer.getBalance()).toString());
 
-  const Token = await ethers.getContractFactory("Token");
-  const token = await Token.deploy();
-  await token.deployed();
+  // Deploy all the contracts here
+  const contractsObj = {
+    "Token": await deployContract("Token"),
+    "CrazyExperiments": await deployExperiments("Experiments", "Crazy experiments"),
+    "WiseExperiments": await deployExperiments("Experiments", "Wise experiments"),
+  };
 
-  console.log("Token address:", token.address);
-
-  // We also save the contract's artifacts and address in the frontend directory
-  saveFrontendFiles(token);
+  // Save the frontend related files
+  saveFrontendFiles(contractsObj);
 }
 
-function saveFrontendFiles(token) {
-  const fs = require("fs");
-  const contractsDir = __dirname + "/../frontend/src/contracts";
+/**
+ * Generic deploy contract
+ * @param {String} contractName 
+ * @returns Object
+ */
+async function deployContract(contractName) {
+  const Contract = await ethers.getContractFactory(contractName);
+  const instance = await Contract.deploy();
+  await instance.deployed();
+  console.log(`${contractName} address: ${instance.address}`);
+  return {
+    contractName,
+    address: instance.address
+  };
+}
 
-  if (!fs.existsSync(contractsDir)) {
-    fs.mkdirSync(contractsDir);
-  }
-
-  fs.writeFileSync(
-    contractsDir + "/contract-address.json",
-    JSON.stringify({ Token: token.address }, undefined, 2)
-  );
-
-  const TokenArtifact = artifacts.readArtifactSync("Token");
-
-  fs.writeFileSync(
-    contractsDir + "/Token.json",
-    JSON.stringify(TokenArtifact, null, 2)
-  );
+/**
+ * Deploy an Experiments contract with its custom initialisers
+ * @param {String} name Experiment name
+ * @returns Object
+ */
+async function deployExperiments(contractName, name) {
+  const Experiments = await ethers.getContractFactory(contractName);
+  const instance = await Experiments.deploy(name);
+  await instance.deployed();
+  console.log(`${contractName}(${name}) address: ${instance.address}`);
+  return {
+    contractName,
+    address: instance.address
+  };
 }
 
 main()
